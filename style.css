@@ -1,0 +1,177 @@
+/* ==========================================================
+   Nexus POS & E-Commerce - Global Stylesheet (Dark & Light)
+   Developed & Architected by: محمد © 2026
+   ========================================================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Cairo', sans-serif;
+    transition: background 0.3s, color 0.3s;
+}
+
+:root {
+    --bg-dark: #0a192f;
+    --card-bg: rgba(255, 255, 255, 0.02);
+    --primary-gold: #d4af37;
+    --text-main: #ffffff;
+    --text-muted: #94a3b8;
+    --border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.light-mode {
+    --bg-dark: #f1f5f9;
+    --card-bg: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: rgba(0, 0, 0, 0.1);
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    direction: rtl;
+}
+
+.login-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: radial-gradient(circle at center, #1e3a8a 0%, var(--bg-dark) 100%);
+}
+
+.pos-container {
+    padding: 15px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.pos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-bg);
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 15px;
+}
+
+.logo {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--primary-gold);
+}
+
+.developer-tag {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.cashier-session-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.action-nav-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 12px;
+    background: #1e3a8a;
+    color: white;
+}
+
+.pos-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 15px;
+}
+
+.products-section, .cart-section {
+    background: var(--card-bg);
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.product-card {
+    background: var(--card-bg);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+    transition: 0.2s;
+}
+
+.product-card:hover {
+    border-color: var(--primary-gold);
+    transform: translateY(-2px);
+}
+
+.cart-summary {
+    margin-top: 15px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+}
+
+.sum-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.sum-row.total {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--primary-gold);
+}
+
+.checkout-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #d4af37, #aa820a);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+.primary-btn {
+    padding: 8px 15px;
+    background: var(--primary-gold);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.table-responsive table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.table-responsive th, .table-responsive td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: right;
+}

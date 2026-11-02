@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متجر Nexus E-Commerce - تسوق أونلاين</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="pos-container">
+        <header class="pos-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="background: linear-gradient(135deg, #d4af37, #1e3a8a); padding: 8px; border-radius: 8px; color: white;">🛒</div>
+                <div>
+                    <div class="logo">Nexus Store Online</div>
+                    <span class="developer-tag">متجر العروض والمنتجات الرقمية</span>
+                </div>
+            </div>
+            <div class="cashier-session-bar">
+                <button onclick="toggleDarkMode()" class="action-nav-btn" style="background:#f59e0b; color:black;">☀️ / 🌙 مظهر</button>
+                <a href="login.html" class="action-nav-btn" style="background:#1e3a8a; text-decoration:none;">🔑 دخول الموظفين</a>
+            </div>
+        </header>
+
+        <div class="pos-grid" style="margin-top: 15px;">
+            <div class="products-section">
+                <h3 style="margin-bottom: 12px; font-size: 15px; color: var(--primary-gold);">🛍️ المنتجات المتاحة للطلب أونلاين</h3>
+                <div class="products-grid" id="storeProductsGrid"></div>
+            </div>
+
+            <div class="cart-section">
+                <h3 style="font-size: 15px; margin-bottom: 10px;">🛒 سلة المشتريات</h3>
+                <div class="cart-items" id="storeCartItems" style="min-height: 180px; max-height: 250px; overflow-y: auto;">
+                    <p style="color: var(--text-muted); text-align: center; margin-top: 25px;">السلة فارغة</p>
+                </div>
+                <div class="cart-summary">
+                    <div class="sum-row"><span>المجموع:</span> <span id="cartSubTotal">0.00</span></div>
+                    <div class="sum-row"><span>الضريبة (15%):</span> <span id="cartTax">0.00</span></div>
+                    <div class="sum-row total"><span>الإجمالي النهائي:</span> <span id="cartGrandTotal">0.00</span></div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <input type="text" id="clientName" placeholder="اسمك الكامل..." style="width:100%; padding:7px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px; margin-bottom:6px;">
+                    <input type="text" id="clientPhone" placeholder="رقم الهاتف للتواصل..." style="width:100%; padding:7px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px; margin-bottom:6px;">
+                    <textarea id="clientAddress" placeholder="عنوان التوصيل (المدينة، الشارع...)" style="width:100%; padding:7px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px; height:50px; margin-bottom:8px;"></textarea>
+                    
+                    <button onclick="submitOnlineOrder()" class="checkout-btn" style="margin:0; padding:10px; background:#16a34a; color:white;">إرسال الطلب عبر الواتساب 📱</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="pos.js"></script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus POS - لوحة تحكم المدير العام</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="pos-container">
+        <header class="pos-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="background: linear-gradient(135deg, #d4af37, #1e3a8a); padding: 8px; border-radius: 8px; color: white;">🛡️</div>
+                <div>
+                    <div class="logo">لوحة تحكم المدير - Nexus POS</div>
+                    <span class="developer-tag">المستخدم الحالي: <b id="currentCashierName">محمد</b></span>
+                </div>
+            </div>
+            <div class="cashier-session-bar">
+                <button onclick="toggleDarkMode()" class="action-nav-btn" style="background:#f59e0b; color:black;">☀️ / 🌙 مظهر</button>
+                <a href="store.html" target="_blank" class="action-nav-btn" style="background:#16a34a; text-decoration:none;">🛍️ فتح المتجر</a>
+                <button onclick="logoutSystem()" class="action-nav-btn" style="background:#ef4444;">خروج 🚪</button>
+            </div>
+        </header>
+
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+            <!-- قسم طلبات العملاء الواردة من المتجر أونلاين -->
+            <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <h3 style="color: var(--primary-gold); font-size: 14px; margin-bottom: 10px;">📥 طلبات الزبائن الواردة من المتجر أونلاين</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>رقم الطلب</th><th>العميل ورقم الهاتف</th><th>العنوان</th><th>الإجمالي</th><th>الوقت</th></tr></thead>
+                        <tbody id="adminOrdersTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- قسم إدارة مستخدمي النظام والصلاحيات (حذف وتعديل) -->
+            <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <h3 style="color: var(--primary-gold); font-size: 14px; margin-bottom: 10px;">👤 إدارة مستخدمي النظام والصلاحيات</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; margin-bottom:10px;">
+                    <input type="text" id="newUsernameInput" placeholder="اسم المستخدم..." style="padding:8px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px;">
+                    <input type="password" id="newUserPassInput" placeholder="كلمة المرور..." style="padding:8px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px;">
+                    <select id="newUserRoleSelect" style="padding:8px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px;">
+                        <option value="cashier">موظف / كاشير</option>
+                        <option value="admin">مدير عام (Admin)</option>
+                    </select>
+                    <button onclick="addNewSystemUser()" class="primary-btn" style="margin:0; font-size:12px;">إضافة ➕</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>اسم المستخدم</th><th>تعديل الصلاحية</th><th>الإجراء</th></tr></thead>
+                        <tbody id="systemUsersTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- قسم إضافة وتعديل وحذف المنتجات -->
+            <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <h3 style="color: var(--primary-gold); font-size: 14px; margin-bottom: 10px;">📦 إضافة منتج جديد وعرضه في المتجر</h3>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                    <input type="text" id="newProdName" placeholder="اسم المنتج..." style="padding:8px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px;">
+                    <input type="number" id="newProdPrice" placeholder="السعر..." style="padding:8px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px;">
+                    <select id="newProdCurrency" style="padding:8px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px;">
+                        <option value="YER">YER</option><option value="SAR">SAR</option><option value="USD">USD</option>
+                    </select>
+                    <input type="number" id="newProdStock" placeholder="الكمية..." style="padding:8px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px;">
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="font-size: 12px; display: block; margin-bottom: 4px; color: var(--text-muted);">اختر صورة المنتج:</label>
+                    <input type="file" id="newProdImage" accept="image/*" style="padding:5px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px; width:100%;">
+                </div>
+                <textarea id="newProdDesc" placeholder="وصف المنتج..." style="width:100%; padding:8px; background:var(--card-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; font-size:12px; height:50px; margin-bottom:8px;"></textarea>
+                <button onclick="addNewProduct()" class="primary-btn" style="width:100%; font-size:13px;">حفظ ونشر المنتج 🚀</button>
+            </div>
+
+            <!-- قائمة جرد وإدارة المنتجات (تعديل وحذف مباشر) -->
+            <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <h3 style="font-size: 14px; margin-bottom: 8px;">📋 جرد وإدارة مخزون المنتجات (تعديل مباشر وحذف)</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>رقم</th><th>اسم المنتج</th><th>السعر</th><th>المخزون</th><th>الإجراءات</th></tr></thead>
+                        <tbody id="adminInventoryTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="pos.js"></script>
+</body>
+</html>
