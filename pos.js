@@ -7,10 +7,17 @@ let users = JSON.parse(localStorage.getItem('users')) || [
     { username: 'محمد', password: 'mm-123', role: 'admin', avatar: '' }
 ];
 
-let inventory = JSON.parse(localStorage.getItem('pos_inventory')) || [
+// مصفوفة المنتجات الأساسية الافتراضية لضمان ظهور المنتجات فوراً لأي عميل عالمياً
+let defaultInventory = [
     { id: 1, name: 'قلم حبر جاف', price: 15, currency: 'YER', stock: 50, desc: 'قلم كتابة سلس للاستخدام اليومي.', image: 'https://via.placeholder.com/150' },
     { id: 2, name: 'دفتر مذكرات', price: 50, currency: 'YER', stock: 30, desc: 'دفتر ملاحظات بغلاف أنيق ومتين.', image: 'https://via.placeholder.com/150' }
 ];
+
+let inventory = JSON.parse(localStorage.getItem('pos_inventory'));
+if (!inventory || inventory.length === 0) {
+    inventory = defaultInventory;
+    localStorage.setItem('pos_inventory', JSON.stringify(inventory));
+}
 
 let cart = JSON.parse(localStorage.getItem('store_cart')) || [];
 let storeOrders = JSON.parse(localStorage.getItem('store_orders')) || [];
@@ -24,18 +31,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentPage = window.location.pathname.split('/').pop();
 
     if (currentPage === 'index.html' || currentPage === '') {
-        if (!currentUser) {
-            window.location.href = 'login.html';
-            return;
-        }
-        renderAdminInventory();
-        renderSystemUsersTable();
-        renderAdminOrders();
-        const cashierNameSpan = document.getElementById('currentCashierName');
-        if (cashierNameSpan) cashierNameSpan.textContent = currentUser.username;
+        // إذا كان الرابط الرئيسي للمتجر (يعرض الواجهة والمنتجات للعملاء مباشرة)
+        renderStoreProducts();
+        renderStoreCart();
+        
+        // إذا كان هناك مدير مسجل دخول ويريد الوصول للوحة التحكم عبر مسار آخر يمكن التوجيه، 
+        // أما الآن فالواجهة مخصصة للعملاء للتسوق عالمياً.
     } else if (currentPage === 'store.html') {
         renderStoreProducts();
         renderStoreCart();
+    } else if (currentPage === 'login.html') {
+        // صفحة تسجيل الدخول للموظفين
     }
 
     const loginBtn = document.getElementById('loginBtn');
@@ -64,64 +70,8 @@ function logoutSystem() {
     window.location.href = 'login.html';
 }
 
-// --- إدارة المستخدمين والصلاحيات (إضافة، تعديل، حذف) ---
-function addNewSystemUser() {
-    if (!currentUser || currentUser.role !== 'admin') { alert('عذراً، هذه الصلاحية للمدير العام فقط!'); return; }
-    const username = document.getElementById('newUsernameInput').value.trim();
-    const password = document.getElementById('newUserPassInput').value.trim();
-    const role = document.getElementById('newUserRoleSelect').value;
-
-    if (!username || !password) { alert('أدخل اسم المستخدم وكلمة المرور!'); return; }
-    if (users.some(u => u.username === username)) { alert('اسم المستخدم موجود مسبقاً!'); return; }
-
-    users.push({ username, password, role });
-    localStorage.setItem('users', JSON.stringify(users));
-    document.getElementById('newUsernameInput').value = "";
-    document.getElementById('newUserPassInput').value = "";
-    renderSystemUsersTable();
-    alert('✅ تم إضافة المستخدم وتحديد صلاحيته بنجاح.');
-}
-
-function renderSystemUsersTable() {
-    const tbody = document.getElementById('systemUsersTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    users.forEach((u, index) => {
-        let roleName = u.role === 'admin' ? 'مدير عام 🛡️' : 'موظف / كاشير ⚡';
-        tbody.innerHTML += `
-            <tr>
-                <td><b>${u.username}</b></td>
-                <td>
-                    <select onchange="updateUserRole(${index}, this.value)" style="background:var(--card-bg); color:inherit; border:1px solid var(--border-color); padding:3px; border-radius:4px;">
-                        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>مدير عام</option>
-                        <option value="cashier" ${u.role === 'cashier' ? 'selected' : ''}>موظف / كاشير</option>
-                    </select>
-                </td>
-                <td>
-                    ${u.username !== 'محمد' ? `<button onclick="deleteSystemUser(${index})" style="background:#ef4444; color:white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer;">حذف</button>` : 'محمي رئيسي'}
-                </td>
-            </tr>
-        `;
-    });
-}
-
-function updateUserRole(index, newRole) {
-    users[index].role = newRole;
-    localStorage.setItem('users', JSON.stringify(users));
-    alert('✅ تم تحديث صلاحية المستخدم بنجاح.');
-}
-
-function deleteSystemUser(index) {
-    if (confirm('هل تريد حذف هذا المستخدم؟')) {
-        users.splice(index, 1);
-        localStorage.setItem('users', JSON.stringify(users));
-        renderSystemUsersTable();
-    }
-}
-
-// --- إدارة المنتجات (إضافة، تعديل، حذف) ---
+// --- إدارة المنتجات (إضافة منتج جديد يظهر فوق المنتجات السابقة تلقائياً) ---
 function addNewProduct() {
-    if (!currentUser || currentUser.role !== 'admin') { alert('عذراً، إضافة المنتجات مقتصرة على المدير العام فقط!'); return; }
     const name = document.getElementById('newProdName').value.trim();
     const price = parseFloat(document.getElementById('newProdPrice').value);
     const currency = document.getElementById('newProdCurrency').value;
@@ -145,49 +95,11 @@ function addNewProduct() {
 
 function saveProductData(name, price, currency, stock, desc, image) {
     const newId = inventory.length > 0 ? inventory[inventory.length - 1].id + 1 : 1;
-    inventory.push({ id: newId, name, price, currency, stock, desc, image });
+    // إضافة المنتج الجديد في بداية المصفوفة لظهر فوق المنتجات السابقة تلقائياً
+    inventory.unshift({ id: newId, name, price, currency, stock, desc, image });
     localStorage.setItem('pos_inventory', JSON.stringify(inventory));
-    renderAdminInventory();
+    renderStoreProducts();
     alert('✅ تم إضافة المنتج ونشره في المتجر بنجاح.');
-}
-
-function renderAdminInventory() {
-    const tbody = document.getElementById('adminInventoryTable');
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    inventory.forEach((item, index) => {
-        tbody.innerHTML += `
-            <tr>
-                <td>#${item.id}</td>
-                <td><input type="text" id="edit_name_${index}" value="${item.name}" style="width:100px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"></td>
-                <td><input type="number" id="edit_price_${index}" value="${item.price}" style="width:60px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"> ${item.currency}</td>
-                <td><input type="number" id="edit_stock_${index}" value="${item.stock}" style="width:50px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"></td>
-                <td>
-                    <button onclick="updateProduct(${index})" style="background:#f59e0b; color:black; border:none; padding:3px 6px; border-radius:3px; cursor:pointer; font-weight:bold;">تعديل</button>
-                    <button onclick="deleteProduct(${index})" style="background:#ef4444; color:white; border:none; padding:3px 6px; border-radius:3px; cursor:pointer;">حذف</button>
-                </td>
-            </tr>
-        `;
-    });
-}
-
-function updateProduct(index) {
-    if (!currentUser || currentUser.role !== 'admin') return;
-    inventory[index].name = document.getElementById(`edit_name_${index}`).value;
-    inventory[index].price = parseFloat(document.getElementById(`edit_price_${index}`).value);
-    inventory[index].stock = parseInt(document.getElementById(`edit_stock_${index}`).value);
-    localStorage.setItem('pos_inventory', JSON.stringify(inventory));
-    renderAdminInventory();
-    alert('✅ تم تحديث بيانات المنتج بنجاح.');
-}
-
-function deleteProduct(index) {
-    if (!currentUser || currentUser.role !== 'admin') return;
-    if (confirm('هل تريد حذف هذا المنتج نهائياً؟')) {
-        inventory.splice(index, 1);
-        localStorage.setItem('pos_inventory', JSON.stringify(inventory));
-        renderAdminInventory();
-    }
 }
 
 // --- واجهة المتجر الإلكتروني للزبائن ---
@@ -260,16 +172,23 @@ function removeFromStoreCart(index) {
 function updateCartTotals(subTotal) {
     let tax = subTotal * 0.15;
     let grandTotal = subTotal + tax;
-    document.getElementById('cartSubTotal').textContent = subTotal.toFixed(2);
-    document.getElementById('cartTax').textContent = tax.toFixed(2);
-    document.getElementById('cartGrandTotal').textContent = grandTotal.toFixed(2);
+    const subElem = document.getElementById('cartSubTotal');
+    const taxElem = document.getElementById('cartTax');
+    const grandElem = document.getElementById('cartGrandTotal');
+    if (subElem) subElem.textContent = subTotal.toFixed(2);
+    if (taxElem) taxElem.textContent = tax.toFixed(2);
+    if (grandElem) grandElem.textContent = grandTotal.toFixed(2);
 }
 
-// --- إرسال الطلب وحفظه محلياً أو عبر الواتساب للرقم 780445044 ---
+// --- إرسال الطلب عبر الواتساب للرقم المطلوب 967780445044 ---
 function submitOnlineOrder() {
-    const name = document.getElementById('clientName').value.trim();
-    const phone = document.getElementById('clientPhone').value.trim();
-    const address = document.getElementById('clientAddress') ? document.getElementById('clientAddress').value.trim() : 'لم يُذكر';
+    const nameInput = document.getElementById('clientName');
+    const phoneInput = document.getElementById('clientPhone');
+    const addressInput = document.getElementById('clientAddress');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const address = addressInput ? addressInput.value.trim() : 'لم يُذكر';
 
     if (!name || !phone || cart.length === 0) { 
         alert('❌ يرجى إدخال الاسم، رقم الهاتف، والتأكد من وجود منتجات في السلة!'); 
@@ -297,10 +216,16 @@ function submitOnlineOrder() {
     let orderText = `🛒 *طلب شراء جديد*%0A`;
     orderText += `👤 *الاسم:* ${name}%0A`;
     orderText += `📞 *الهاتف:* ${phone}%0A`;
-    orderText += `📍 *العنوان:* ${address}%0A`;
-    orderText += `💰 *الإجمالي:* ${grandTotal.toFixed(2)} YER%0A`;
+    orderText += `📍 *العنوان:* ${address}%0A%0A`;
+    orderText += `🛍️ *المنتجات المطلوبة:*%0A`;
+    
+    cart.forEach(item => {
+        orderText += `- ${item.name} (الكمية: ${item.qty}) = ${item.price * item.qty} ${item.currency}%0A`;
+    });
+    
+    orderText += `%0A💰 *الإجمالي النهائي (شامل الضريبة):* ${grandTotal.toFixed(2)} YER`;
 
-    // توجيه الطلب إلى رقم الواتساب المطلوب: 780445044 (مع كود اليمن 967)
+    // توجيه الطلب إلى رقم الواتساب المطلوب بدقة
     const adminWhatsAppNumber = "967780445044";
     const whatsappURL = `https://wa.me/${adminWhatsAppNumber}?text=${orderText}`;
 
@@ -309,27 +234,10 @@ function submitOnlineOrder() {
     renderStoreCart();
     renderStoreProducts();
 
-    alert(`🎉 شكراً لك يا ${name}! تم حفظ طلبك بنجاح. (إذا توفر إنترنت، سيتم تحويلك للواتساب لإرساله للمدير).`);
-    window.open(whatsappURL, '_blank');
-}
+    if(nameInput) nameInput.value = '';
+    if(phoneInput) phoneInput.value = '';
+    if(addressInput) addressInput.value = '';
 
-function renderAdminOrders() {
-    const tbody = document.getElementById('adminOrdersTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    if (storeOrders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">لا توجد طلبات أونلاين جديدة حالياً</td></tr>`;
-        return;
-    }
-    storeOrders.slice().reverse().forEach((ord, idx) => {
-        tbody.innerHTML += `
-            <tr>
-                <td>#${ord.id}</td>
-                <td><b>${ord.clientName}</b><br><span style="font-size:10px; color:var(--text-muted);">${ord.clientPhone}</span></td>
-                <td>${ord.clientAddress}</td>
-                <td style="color:var(--primary-gold); font-weight:bold;">${ord.total.toFixed(2)} YER</td>
-                <td>${ord.timestamp}</td>
-            </tr>
-        `;
-    });
+    alert(`🎉 شكراً لك يا ${name}! تم تجهيز طلبك بنجاح، سيتم تحويلك الآن لإرساله عبر الواتساب.`);
+    window.open(whatsappURL, '_blank');
 }
