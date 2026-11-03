@@ -35,28 +35,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentPage = window.location.pathname.split('/').pop();
 
     if (currentPage === 'index.html' || currentPage === '') {
-        // واجهة المتجر الرئيسية للعملاء
+        // واجهة المتجر الرئيسية للعملاء (التي تفتح للجميع)
         renderStoreProducts();
         renderStoreCart();
     } else if (currentPage === 'login.html') {
         // صفحة تسجيل الدخول للموظفين والمدير
         checkLoginLockState();
-    } else if (currentPage === 'admin.html' || currentPage === 'dashboard.html') {
-        // لوحة تحكم المدير والموظفين
+    } else if (currentPage === 'store.html' || currentPage === 'admin.html' || currentPage === 'dashboard.html') {
+        // لوحة تحكم المدير والموظفين (تتطلب تسجيل دخول مسبق)
         if (!currentUser) {
+            alert('⚠️ يجب تسجيل الدخول أولاً للوصول إلى لوحة التحكم!');
             window.location.href = 'login.html';
             return;
         }
+        
         renderAdminInventory();
         renderSystemUsersTable();
         renderAdminOrders();
+        
         const cashierNameSpan = document.getElementById('currentCashierName');
         if (cashierNameSpan) cashierNameSpan.textContent = currentUser.username;
         
-        // تطبيق قيد الصلاحيات (إذا كان موظفاً، نخفي قسم إضافة المستخدمين الجدد)
+        // تطبيق قيد الصلاحيات (إذا لم يكن مديراً، نقوم بمنعه من إضافة مستخدمين جدد)
         if (currentUser.role !== 'admin') {
-            const addUserSection = document.getElementById('addUserSection');
-            if (addUserSection) addUserSection.style.display = 'none';
+            const addUserInputs = document.querySelectorAll('#newUsernameInput, #newUserPassInput, #newUserRoleSelect');
+            addUserInputs.forEach(el => { if(el) el.disabled = true; });
         }
     }
 
@@ -77,7 +80,7 @@ function logoutSystem() {
     window.location.href = 'login.html';
 }
 
-// --- نظام تسجيل الدخول مع التحقيق و 3 محاولات فقط ---
+// --- نظام تسجيل الدخول مع التحقق و 3 محاولات فقط ---
 function handleSystemLogin() {
     if (loginAttempts >= 3) {
         alert('❌ تم تجاوز الحد الأقصى للمحاولات (3 محاولات). تم قفل تسجيل الدخول مؤقتاً لحماية النظام!');
@@ -106,7 +109,8 @@ function handleSystemLogin() {
         localStorage.setItem('currentUser', JSON.stringify(foundUser));
         
         alert(`✅ أهلاً بك يا ${foundUser.username} (${foundUser.role === 'admin' ? 'مدير عام' : 'موظف'})`);
-        window.location.href = 'index.html'; // أو صفحة لوحة التحكم الخاصة بك
+        // التوجيه إلى لوحة التحكم (store.html بعد أن أصبحت خاصة للإدارة)
+        window.location.href = 'store.html';
     } else {
         loginAttempts++;
         localStorage.setItem('login_attempts', loginAttempts);
@@ -230,9 +234,47 @@ function saveProductData(name, price, currency, stock, desc, image) {
     const newId = inventory.length > 0 ? inventory[inventory.length - 1].id + 1 : 1;
     inventory.unshift({ id: newId, name, price, currency, stock, desc, image });
     localStorage.setItem('pos_inventory', JSON.stringify(inventory));
-    renderStoreProducts();
     if(typeof renderAdminInventory === 'function') renderAdminInventory();
     alert('✅ تم إضافة المنتج ونشره في المتجر بنجاح.');
+}
+
+function renderAdminInventory() {
+    const tbody = document.getElementById('adminInventoryTable');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    inventory.forEach((item, index) => {
+        tbody.innerHTML += `
+            <tr>
+                <td>#${item.id}</td>
+                <td><input type="text" id="edit_name_${index}" value="${item.name}" style="width:100px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"></td>
+                <td><input type="number" id="edit_price_${index}" value="${item.price}" style="width:60px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"> ${item.currency}</td>
+                <td><input type="number" id="edit_stock_${index}" value="${item.stock}" style="width:50px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"></td>
+                <td>
+                    <button onclick="updateProduct(${index})" style="background:#f59e0b; color:black; border:none; padding:3px 6px; border-radius:3px; cursor:pointer; font-weight:bold;">تعديل</button>
+                    <button onclick="deleteProduct(${index})" style="background:#ef4444; color:white; border:none; padding:3px 6px; border-radius:3px; cursor:pointer;">حذف</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function updateProduct(index) {
+    if (!currentUser) return;
+    inventory[index].name = document.getElementById(`edit_name_${index}`).value;
+    inventory[index].price = parseFloat(document.getElementById(`edit_price_${index}`).value);
+    inventory[index].stock = parseInt(document.getElementById(`edit_stock_${index}`).value);
+    localStorage.setItem('pos_inventory', JSON.stringify(inventory));
+    renderAdminInventory();
+    alert('✅ تم تحديث بيانات المنتج بنجاح.');
+}
+
+function deleteProduct(index) {
+    if (!currentUser) return;
+    if (confirm('هل تريد حذف هذا المنتج نهائياً؟')) {
+        inventory.splice(index, 1);
+        localStorage.setItem('pos_inventory', JSON.stringify(inventory));
+        renderAdminInventory();
+    }
 }
 
 // --- واجهة المتجر الإلكتروني للزبائن ---
@@ -372,4 +414,26 @@ function submitOnlineOrder() {
 
     alert(`🎉 شكراً لك يا ${name}! تم تجهيز طلبك بنجاح، سيتم تحويلك الآن لإرساله عبر الواتساب.`);
     window.open(whatsappURL, '_blank');
+}
+
+function renderAdminOrders() {
+    const tbody = document.getElementById('adminOrdersTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    if (storeOrders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">لا توجد طلبات أونلاين جديدة حالياً</td></tr>`;
+        return;
+    }
+    storeOrders.slice().reverse().forEach((ord) => {
+        let itemsSummary = ord.items.map(i => `${i.name} (${i.qty})`).join(', ');
+        tbody.innerHTML += `
+            <tr>
+                <td>#${ord.id}</td>
+                <td><b>${ord.clientName}</b><br><span style="font-size:10px; color:var(--text-muted);">${ord.clientPhone}</span></td>
+                <td>${ord.clientAddress}<br><span style="font-size:10px; color:var(--primary-gold);">${itemsSummary}</span></td>
+                <td style="color:var(--primary-gold); font-weight:bold;">${ord.total.toFixed(2)} YER</td>
+                <td>${ord.timestamp}</td>
+            </tr>
+        `;
+    });
 }
