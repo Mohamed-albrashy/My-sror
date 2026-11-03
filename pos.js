@@ -1,30 +1,35 @@
 /* ====================================================
-   Nexus POS & E-Commerce - Advanced Secured Engine
+   Nexus POS & E-Commerce - Synchronized Core Engine
    Developed & Architected by: محمد © 2026
    ================================================    */
 
-// تهيئة المستخدمين مع تحديد الصلاحيات
 let users = JSON.parse(localStorage.getItem('users')) || [
-    { username: 'محمد', password: 'mm-123', role: 'admin', avatar: '' }
+    { username: 'محمد', password: 'mm_12', role: 'admin', avatar: '' }
 ];
 
-// مصفوفة المنتجات الأساسية الافتراضية
 let defaultInventory = [
     { id: 1, name: 'قلم حبر جاف', price: 15, currency: 'YER', stock: 50, desc: 'قلم كتابة سلس للاستخدام اليومي.', image: 'https://via.placeholder.com/150' },
     { id: 2, name: 'دفتر مذكرات', price: 50, currency: 'YER', stock: 30, desc: 'دفتر ملاحظات بغلاف أنيق ومتين.', image: 'https://via.placeholder.com/150' }
 ];
 
-let inventory = JSON.parse(localStorage.getItem('pos_inventory'));
-if (!inventory || inventory.length === 0) {
-    inventory = defaultInventory;
-    localStorage.setItem('pos_inventory', JSON.stringify(inventory));
+// دالة جلب المنتجات لضمان مزامنتها دائماً
+function getInventory() {
+    let saved = localStorage.getItem('pos_inventory');
+    if (!saved) {
+        localStorage.setItem('pos_inventory', JSON.stringify(defaultInventory));
+        return defaultInventory;
+    }
+    try {
+        return JSON.parse(saved);
+    } catch(e) {
+        return defaultInventory;
+    }
 }
 
+let inventory = getInventory();
 let cart = JSON.parse(localStorage.getItem('store_cart')) || [];
 let storeOrders = JSON.parse(localStorage.getItem('store_orders')) || [];
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
-
-// نظام تتبع محاولات تسجيل الدخول الفاشلة (بحد أقصى 3 محاولات)
 let loginAttempts = parseInt(localStorage.getItem('login_attempts')) || 0;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,17 +37,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('light-mode');
     }
 
+    // تحديث المخزون تلقائياً عند تحميل أي صفحة لضمان مزامنة التعديلات
+    inventory = getInventory();
+
     const currentPage = window.location.pathname.split('/').pop();
 
-    if (currentPage === 'index.html' || currentPage === '') {
-        // واجهة المتجر الرئيسية للعملاء (التي تفتح للجميع)
+    if (currentPage === 'index.html' || currentPage === '' || currentPage.includes('store')) {
+        // واجهة المتجر الرئيسية للعملاء (تحديث وعرض المنتجات فوراً)
         renderStoreProducts();
         renderStoreCart();
     } else if (currentPage === 'login.html') {
-        // صفحة تسجيل الدخول للموظفين والمدير
         checkLoginLockState();
     } else if (currentPage === 'store.html' || currentPage === 'admin.html' || currentPage === 'dashboard.html') {
-        // لوحة تحكم المدير والموظفين (تتطلب تسجيل دخول مسبق)
         if (!currentUser) {
             alert('⚠️ يجب تسجيل الدخول أولاً للوصول إلى لوحة التحكم!');
             window.location.href = 'login.html';
@@ -56,17 +62,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const cashierNameSpan = document.getElementById('currentCashierName');
         if (cashierNameSpan) cashierNameSpan.textContent = currentUser.username;
         
-        // تطبيق قيد الصلاحيات (إذا لم يكن مديراً، نقوم بمنعه من إضافة مستخدمين جدد)
         if (currentUser.role !== 'admin') {
             const addUserInputs = document.querySelectorAll('#newUsernameInput, #newUserPassInput, #newUserRoleSelect');
             addUserInputs.forEach(el => { if(el) el.disabled = true; });
         }
     }
 
-    // تفعيل زر تسجيل الدخول
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
         loginBtn.addEventListener('click', handleSystemLogin);
+    }
+});
+
+// الاستماع لأي تحديثات تحدث في الذاكرة لتحديث المتجر تلقائياً
+window.addEventListener('storage', (e) => {
+    if (e.key === 'pos_inventory') {
+        inventory = getInventory();
+        renderStoreProducts();
     }
 });
 
@@ -80,16 +92,14 @@ function logoutSystem() {
     window.location.href = 'login.html';
 }
 
-// --- نظام تسجيل الدخول مع التحقق و 3 محاولات فقط ---
 function handleSystemLogin() {
     if (loginAttempts >= 3) {
-        alert('❌ تم تجاوز الحد الأقصى للمحاولات (3 محاولات). تم قفل تسجيل الدخول مؤقتاً لحماية النظام!');
+        alert('❌ تم تجاوز الحد الأقصى للمحاولات (3 محاولات). تم قفل تسجيل الدخول مؤقتاً!');
         return;
     }
 
     const userInput = document.getElementById('loginUser');
     const passInput = document.getElementById('loginPass');
-    
     if (!userInput || !passInput) return;
 
     const u = userInput.value.trim();
@@ -106,19 +116,17 @@ function handleSystemLogin() {
         loginAttempts = 0;
         localStorage.setItem('login_attempts', loginAttempts);
         localStorage.setItem('currentUser', JSON.stringify(foundUser));
-        
-        alert(`✅ أهلاً بك يا ${foundUser.username} (${foundUser.role === 'admin' ? 'مدير عام' : 'موظف'})`);
+        alert(`✅ أهلاً بك يا ${foundUser.username}`);
         window.location.href = 'store.html';
     } else {
         loginAttempts++;
         localStorage.setItem('login_attempts', loginAttempts);
         const remaining = 3 - loginAttempts;
-
         if (loginAttempts >= 3) {
-            alert('❌ خطأ في البيانات! لقد استنفذت المحاولات الـ 3 المسموحة. تم قفل النظام.');
+            alert('❌ تم قفل النظام لاستنفاد المحاولات.');
             location.reload();
         } else {
-            alert(`❌ اسم المستخدم أو كلمة المرور غير صحيحة! تنبيه: تبقت لديك (${remaining}) محاولات فقط.`);
+            alert(`❌ بيانات غير صحيحة! تبقت لديك (${remaining}) محاولات.`);
         }
     }
 }
@@ -129,22 +137,20 @@ function checkLoginLockState() {
         if (loginBtn) {
             loginBtn.disabled = true;
             loginBtn.style.background = '#444';
-            loginBtn.textContent = '❌ تم قفل النظام (محاولات مقيدة)';
+            loginBtn.textContent = '❌ تم قفل النظام';
         }
     }
 }
 
-// --- إدارة المستخدمين والصلاحيات (مقتصرة على المدير العام فقط) ---
 function addNewSystemUser() {
     if (!currentUser || currentUser.role !== 'admin') { 
-        alert('🚫 عذراً، إضافة مستخدمين جدد مقتصرة على المدير العام (Admin) فقط!'); 
+        alert('🚫 عذراً، إضافة مستخدمين جدد مقتصرة على المدير العام فقط!'); 
         return; 
     }
 
     const usernameInput = document.getElementById('newUsernameInput');
     const passwordInput = document.getElementById('newUserPassInput');
     const roleSelect = document.getElementById('newUserRoleSelect');
-
     if (!usernameInput || !passwordInput) return;
 
     const username = usernameInput.value.trim();
@@ -156,11 +162,10 @@ function addNewSystemUser() {
 
     users.push({ username, password, role });
     localStorage.setItem('users', JSON.stringify(users));
-    
     usernameInput.value = "";
     passwordInput.value = "";
     renderSystemUsersTable();
-    alert('✅ تم إضافة المستخدم الجديد وتحديد صلاحيته بنجاح.');
+    alert('✅ تم إضافة المستخدم بنجاح.');
 }
 
 function renderSystemUsersTable() {
@@ -188,14 +193,14 @@ function renderSystemUsersTable() {
 }
 
 function updateUserRole(index, newRole) {
-    if (!currentUser || currentUser.role !== 'admin') { alert('🚫 صلاحية المدير فقط!'); return; }
+    if (!currentUser || currentUser.role !== 'admin') return;
     users[index].role = newRole;
     localStorage.setItem('users', JSON.stringify(users));
-    alert('✅ تم تحديث صلاحية المستخدم بنجاح.');
+    alert('✅ تم التحديث بنجاح.');
 }
 
 function deleteSystemUser(index) {
-    if (!currentUser || currentUser.role !== 'admin') { alert('🚫 صلاحية المدير فقط!'); return; }
+    if (!currentUser || currentUser.role !== 'admin') return;
     if (confirm('هل تريد حذف هذا المستخدم؟')) {
         users.splice(index, 1);
         localStorage.setItem('users', JSON.stringify(users));
@@ -203,7 +208,7 @@ function deleteSystemUser(index) {
     }
 }
 
-// --- إدارة المنتجات (إضافة منتج جديد بالصور والبيانات وتخزينها دائماً) ---
+// --- إضافة منتج ونشره فوراً للعملاء ---
 function addNewProduct() {
     if (!currentUser) { alert('⚠️ يجب تسجيل الدخول أولاً!'); return; }
 
@@ -215,7 +220,7 @@ function addNewProduct() {
     const imageInput = document.getElementById('newProdImage');
 
     if (!name || isNaN(price) || isNaN(stock)) { 
-        alert('⚠️ الرجاء إدخال بيانات المنتج الأساسية (الاسم، السعر، الكمية)!'); 
+        alert('⚠️ الرجاء إدخال بيانات المنتج الأساسية!'); 
         return; 
     }
 
@@ -226,18 +231,16 @@ function addNewProduct() {
         };
         reader.readAsDataURL(imageInput.files[0]);
     } else {
-        // صورة افتراضية في حال لم يتم اختيار صورة
         saveProductData(name, price, currency, stock, desc, 'https://via.placeholder.com/150');
     }
 }
 
 function saveProductData(name, price, currency, stock, desc, image) {
-    const newId = inventory.length > 0 ? inventory[inventory.length - 1].id + 1 : 1;
-    // إضافة المنتج الجديد في بداية المصفوفة ليظهر تلقائياً في واجهة المتجر للعملاء
+    inventory = getInventory();
+    const newId = inventory.length > 0 ? inventory[0].id + 1 : 1;
     inventory.unshift({ id: newId, name, price, currency, stock, desc, image });
     localStorage.setItem('pos_inventory', JSON.stringify(inventory));
     
-    // إعادة تعيين الحقول بعد الإضافة الناجحة
     document.getElementById('newProdName').value = '';
     document.getElementById('newProdPrice').value = '';
     document.getElementById('newProdStock').value = '';
@@ -245,10 +248,11 @@ function saveProductData(name, price, currency, stock, desc, image) {
     if(document.getElementById('newProdImage')) document.getElementById('newProdImage').value = '';
 
     renderAdminInventory();
-    alert('✅ تم إضافة المنتج بالصورة ونشره في المتجر بنجاح ودون انقطاع!');
+    alert('✅ تم إضافة المنتج ونشره للعملاء في واجهة المتجر فوراً!');
 }
 
 function renderAdminInventory() {
+    inventory = getInventory();
     const tbody = document.getElementById('adminInventoryTable');
     if (!tbody) return;
     tbody.innerHTML = "";
@@ -280,20 +284,21 @@ function updateProduct(index) {
     inventory[index].stock = parseInt(document.getElementById(`edit_stock_${index}`).value);
     localStorage.setItem('pos_inventory', JSON.stringify(inventory));
     renderAdminInventory();
-    alert('✅ تم تحديث بيانات المنتج بنجاح.');
+    alert('✅ تم التحديث بنجاح.');
 }
 
 function deleteProduct(index) {
     if (!currentUser) return;
-    if (confirm('هل تريد حذف هذا المنتج نهائياً من النظام؟')) {
+    if (confirm('هل تريد حذف هذا المنتج نهائياً؟')) {
         inventory.splice(index, 1);
         localStorage.setItem('pos_inventory', JSON.stringify(inventory));
         renderAdminInventory();
     }
 }
 
-// --- واجهة المتجر الإلكتروني للزبائن ---
+// --- عرض المنتجات في واجهة المتجر للعملاء فوراً ---
 function renderStoreProducts() {
+    inventory = getInventory();
     const grid = document.getElementById('storeProductsGrid');
     if (!grid) return;
     grid.innerHTML = "";
@@ -322,7 +327,7 @@ function addToStoreCart(productId) {
     const cartItem = cart.find(item => item.id === productId);
     if (cartItem) {
         if (cartItem.qty < product.stock) cartItem.qty += 1;
-        else { alert('الحد الأقص للمخزون!'); return; }
+        else { alert('الحد الأقصى للمخزون!'); return; }
     } else {
         cart.push({ id: product.id, name: product.name, price: product.price, currency: product.currency, qty: 1 });
     }
@@ -370,7 +375,6 @@ function updateCartTotals(subTotal) {
     if (grandElem) grandElem.textContent = grandTotal.toFixed(2);
 }
 
-// --- إرسال الطلب عبر الواتساب للرقم المطلوب 967780445044 ---
 function submitOnlineOrder() {
     const nameInput = document.getElementById('clientName');
     const phoneInput = document.getElementById('clientPhone');
