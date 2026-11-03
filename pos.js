@@ -103,13 +103,11 @@ function handleSystemLogin() {
     const foundUser = users.find(user => user.username === u && user.password === p);
 
     if (foundUser) {
-        // نجاح تسجيل الدخول
         loginAttempts = 0;
         localStorage.setItem('login_attempts', loginAttempts);
         localStorage.setItem('currentUser', JSON.stringify(foundUser));
         
         alert(`✅ أهلاً بك يا ${foundUser.username} (${foundUser.role === 'admin' ? 'مدير عام' : 'موظف'})`);
-        // التوجيه إلى لوحة التحكم (store.html بعد أن أصبحت خاصة للإدارة)
         window.location.href = 'store.html';
     } else {
         loginAttempts++;
@@ -205,7 +203,7 @@ function deleteSystemUser(index) {
     }
 }
 
-// --- إدارة المنتجات (إضافة منتج جديد يظهر فوق المنتجات السابقة تلقائياً) ---
+// --- إدارة المنتجات (إضافة منتج جديد بالصور والبيانات وتخزينها دائماً) ---
 function addNewProduct() {
     if (!currentUser) { alert('⚠️ يجب تسجيل الدخول أولاً!'); return; }
 
@@ -216,9 +214,11 @@ function addNewProduct() {
     const desc = document.getElementById('newProdDesc') ? document.getElementById('newProdDesc').value.trim() : '';
     const imageInput = document.getElementById('newProdImage');
 
-    if (!name || isNaN(price) || isNaN(stock)) { alert('الرجاء إدخال بيانات المنتج الأساسية!'); return; }
+    if (!name || isNaN(price) || isNaN(stock)) { 
+        alert('⚠️ الرجاء إدخال بيانات المنتج الأساسية (الاسم، السعر، الكمية)!'); 
+        return; 
+    }
 
-    let imageSrc = 'https://via.placeholder.com/150';
     if (imageInput && imageInput.files && imageInput.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -226,16 +226,26 @@ function addNewProduct() {
         };
         reader.readAsDataURL(imageInput.files[0]);
     } else {
-        saveProductData(name, price, currency, stock, desc, imageSrc);
+        // صورة افتراضية في حال لم يتم اختيار صورة
+        saveProductData(name, price, currency, stock, desc, 'https://via.placeholder.com/150');
     }
 }
 
 function saveProductData(name, price, currency, stock, desc, image) {
     const newId = inventory.length > 0 ? inventory[inventory.length - 1].id + 1 : 1;
+    // إضافة المنتج الجديد في بداية المصفوفة ليظهر تلقائياً في واجهة المتجر للعملاء
     inventory.unshift({ id: newId, name, price, currency, stock, desc, image });
     localStorage.setItem('pos_inventory', JSON.stringify(inventory));
-    if(typeof renderAdminInventory === 'function') renderAdminInventory();
-    alert('✅ تم إضافة المنتج ونشره في المتجر بنجاح.');
+    
+    // إعادة تعيين الحقول بعد الإضافة الناجحة
+    document.getElementById('newProdName').value = '';
+    document.getElementById('newProdPrice').value = '';
+    document.getElementById('newProdStock').value = '';
+    if(document.getElementById('newProdDesc')) document.getElementById('newProdDesc').value = '';
+    if(document.getElementById('newProdImage')) document.getElementById('newProdImage').value = '';
+
+    renderAdminInventory();
+    alert('✅ تم إضافة المنتج بالصورة ونشره في المتجر بنجاح ودون انقطاع!');
 }
 
 function renderAdminInventory() {
@@ -246,7 +256,12 @@ function renderAdminInventory() {
         tbody.innerHTML += `
             <tr>
                 <td>#${item.id}</td>
-                <td><input type="text" id="edit_name_${index}" value="${item.name}" style="width:100px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"></td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <img src="${item.image || 'https://via.placeholder.com/50'}" style="width:30px; height:30px; object-fit:cover; border-radius:4px;">
+                        <input type="text" id="edit_name_${index}" value="${item.name}" style="width:90px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;">
+                    </div>
+                </td>
                 <td><input type="number" id="edit_price_${index}" value="${item.price}" style="width:60px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"> ${item.currency}</td>
                 <td><input type="number" id="edit_stock_${index}" value="${item.stock}" style="width:50px; background:transparent; color:inherit; border:1px solid var(--border-color); padding:3px;"></td>
                 <td>
@@ -270,7 +285,7 @@ function updateProduct(index) {
 
 function deleteProduct(index) {
     if (!currentUser) return;
-    if (confirm('هل تريد حذف هذا المنتج نهائياً؟')) {
+    if (confirm('هل تريد حذف هذا المنتج نهائياً من النظام؟')) {
         inventory.splice(index, 1);
         localStorage.setItem('pos_inventory', JSON.stringify(inventory));
         renderAdminInventory();
@@ -307,7 +322,7 @@ function addToStoreCart(productId) {
     const cartItem = cart.find(item => item.id === productId);
     if (cartItem) {
         if (cartItem.qty < product.stock) cartItem.qty += 1;
-        else { alert('الحد الأقصى للمخزون!'); return; }
+        else { alert('الحد الأقص للمخزون!'); return; }
     } else {
         cart.push({ id: product.id, name: product.name, price: product.price, currency: product.currency, qty: 1 });
     }
@@ -430,7 +445,7 @@ function renderAdminOrders() {
             <tr>
                 <td>#${ord.id}</td>
                 <td><b>${ord.clientName}</b><br><span style="font-size:10px; color:var(--text-muted);">${ord.clientPhone}</span></td>
-                <td>${ord.clientAddress}<br><span style="font-size:10px; color:var(--primary-gold);">${itemsSummary}</span></td>
+                <td>${ord.clientAddress}<br><span style="font-size:10px; color: var(--primary-gold);">${itemsSummary}</span></td>
                 <td style="color:var(--primary-gold); font-weight:bold;">${ord.total.toFixed(2)} YER</td>
                 <td>${ord.timestamp}</td>
             </tr>
