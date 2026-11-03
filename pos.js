@@ -1,13 +1,14 @@
 /* ====================================================
-   Nexus POS & E-Commerce - Unified Core Engine
+   Nexus POS & E-Commerce - Advanced Secured Engine
    Developed & Architected by: محمد © 2026
    ================================================    */
 
+// تهيئة المستخدمين مع تحديد الصلاحيات
 let users = JSON.parse(localStorage.getItem('users')) || [
     { username: 'محمد', password: 'mm-123', role: 'admin', avatar: '' }
 ];
 
-// مصفوفة المنتجات الأساسية الافتراضية لضمان ظهور المنتجات فوراً لأي عميل عالمياً
+// مصفوفة المنتجات الأساسية الافتراضية
 let defaultInventory = [
     { id: 1, name: 'قلم حبر جاف', price: 15, currency: 'YER', stock: 50, desc: 'قلم كتابة سلس للاستخدام اليومي.', image: 'https://via.placeholder.com/150' },
     { id: 2, name: 'دفتر مذكرات', price: 50, currency: 'YER', stock: 30, desc: 'دفتر ملاحظات بغلاف أنيق ومتين.', image: 'https://via.placeholder.com/150' }
@@ -23,6 +24,9 @@ let cart = JSON.parse(localStorage.getItem('store_cart')) || [];
 let storeOrders = JSON.parse(localStorage.getItem('store_orders')) || [];
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 
+// نظام تتبع محاولات تسجيل الدخول الفاشلة (بحد أقصى 3 محاولات)
+let loginAttempts = parseInt(localStorage.getItem('login_attempts')) || 0;
+
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'light') {
         document.body.classList.add('light-mode');
@@ -31,32 +35,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentPage = window.location.pathname.split('/').pop();
 
     if (currentPage === 'index.html' || currentPage === '') {
-        // إذا كان الرابط الرئيسي للمتجر (يعرض الواجهة والمنتجات للعملاء مباشرة)
-        renderStoreProducts();
-        renderStoreCart();
-        
-        // إذا كان هناك مدير مسجل دخول ويريد الوصول للوحة التحكم عبر مسار آخر يمكن التوجيه، 
-        // أما الآن فالواجهة مخصصة للعملاء للتسوق عالمياً.
-    } else if (currentPage === 'store.html') {
+        // واجهة المتجر الرئيسية للعملاء
         renderStoreProducts();
         renderStoreCart();
     } else if (currentPage === 'login.html') {
-        // صفحة تسجيل الدخول للموظفين
+        // صفحة تسجيل الدخول للموظفين والمدير
+        checkLoginLockState();
+    } else if (currentPage === 'admin.html' || currentPage === 'dashboard.html') {
+        // لوحة تحكم المدير والموظفين
+        if (!currentUser) {
+            window.location.href = 'login.html';
+            return;
+        }
+        renderAdminInventory();
+        renderSystemUsersTable();
+        renderAdminOrders();
+        const cashierNameSpan = document.getElementById('currentCashierName');
+        if (cashierNameSpan) cashierNameSpan.textContent = currentUser.username;
+        
+        // تطبيق قيد الصلاحيات (إذا كان موظفاً، نخفي قسم إضافة المستخدمين الجدد)
+        if (currentUser.role !== 'admin') {
+            const addUserSection = document.getElementById('addUserSection');
+            if (addUserSection) addUserSection.style.display = 'none';
+        }
     }
 
+    // تفعيل زر تسجيل الدخول
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            const u = document.getElementById('loginUser').value.trim();
-            const p = document.getElementById('loginPass').value.trim();
-            const foundUser = users.find(user => user.username === u && user.password === p);
-            if (foundUser) {
-                localStorage.setItem('currentUser', JSON.stringify(foundUser));
-                window.location.href = 'index.html';
-            } else {
-                alert('❌ اسم المستخدم أو كلمة المرور غير صحيحة!');
-            }
-        });
+        loginBtn.addEventListener('click', handleSystemLogin);
     }
 });
 
@@ -70,8 +77,134 @@ function logoutSystem() {
     window.location.href = 'login.html';
 }
 
+// --- نظام تسجيل الدخول مع التحقيق و 3 محاولات فقط ---
+function handleSystemLogin() {
+    if (loginAttempts >= 3) {
+        alert('❌ تم تجاوز الحد الأقصى للمحاولات (3 محاولات). تم قفل تسجيل الدخول مؤقتاً لحماية النظام!');
+        return;
+    }
+
+    const userInput = document.getElementById('loginUser');
+    const passInput = document.getElementById('loginPass');
+    
+    if (!userInput || !passInput) return;
+
+    const u = userInput.value.trim();
+    const p = passInput.value.trim();
+
+    if (!u || !p) {
+        alert('⚠️ الرجاء إدخال اسم المستخدم وكلمة المرور!');
+        return;
+    }
+
+    const foundUser = users.find(user => user.username === u && user.password === p);
+
+    if (foundUser) {
+        // نجاح تسجيل الدخول
+        loginAttempts = 0;
+        localStorage.setItem('login_attempts', loginAttempts);
+        localStorage.setItem('currentUser', JSON.stringify(foundUser));
+        
+        alert(`✅ أهلاً بك يا ${foundUser.username} (${foundUser.role === 'admin' ? 'مدير عام' : 'موظف'})`);
+        window.location.href = 'index.html'; // أو صفحة لوحة التحكم الخاصة بك
+    } else {
+        loginAttempts++;
+        localStorage.setItem('login_attempts', loginAttempts);
+        const remaining = 3 - loginAttempts;
+
+        if (loginAttempts >= 3) {
+            alert('❌ خطأ في البيانات! لقد استنفذت المحاولات الـ 3 المسموحة. تم قفل النظام.');
+            location.reload();
+        } else {
+            alert(`❌ اسم المستخدم أو كلمة المرور غير صحيحة! تنبيه: تبقت لديك (${remaining}) محاولات فقط.`);
+        }
+    }
+}
+
+function checkLoginLockState() {
+    if (loginAttempts >= 3) {
+        const loginBtn = document.getElementById('loginBtn');
+        if (loginBtn) {
+            loginBtn.disabled = true;
+            loginBtn.style.background = '#444';
+            loginBtn.textContent = '❌ تم قفل النظام (محاولات مقيدة)';
+        }
+    }
+}
+
+// --- إدارة المستخدمين والصلاحيات (مقتصرة على المدير العام فقط) ---
+function addNewSystemUser() {
+    if (!currentUser || currentUser.role !== 'admin') { 
+        alert('🚫 عذراً، إضافة مستخدمين جدد مقتصرة على المدير العام (Admin) فقط!'); 
+        return; 
+    }
+
+    const usernameInput = document.getElementById('newUsernameInput');
+    const passwordInput = document.getElementById('newUserPassInput');
+    const roleSelect = document.getElementById('newUserRoleSelect');
+
+    if (!usernameInput || !passwordInput) return;
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+    const role = roleSelect ? roleSelect.value : 'cashier';
+
+    if (!username || !password) { alert('⚠️ أدخل اسم المستخدم وكلمة المرور!'); return; }
+    if (users.some(u => u.username === username)) { alert('⚠️ اسم المستخدم موجود مسبقاً!'); return; }
+
+    users.push({ username, password, role });
+    localStorage.setItem('users', JSON.stringify(users));
+    
+    usernameInput.value = "";
+    passwordInput.value = "";
+    renderSystemUsersTable();
+    alert('✅ تم إضافة المستخدم الجديد وتحديد صلاحيته بنجاح.');
+}
+
+function renderSystemUsersTable() {
+    const tbody = document.getElementById('systemUsersTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    users.forEach((u, index) => {
+        let roleName = u.role === 'admin' ? 'مدير عام 🛡️' : 'موظف / كاشير ⚡';
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${u.username}</b></td>
+                <td>
+                    ${currentUser.role === 'admin' ? `
+                    <select onchange="updateUserRole(${index}, this.value)" style="background:var(--card-bg); color:inherit; border:1px solid var(--border-color); padding:3px; border-radius:4px;">
+                        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>مدير عام</option>
+                        <option value="cashier" ${u.role === 'cashier' ? 'selected' : ''}>موظف / كاشير</option>
+                    </select>` : roleName}
+                </td>
+                <td>
+                    ${currentUser.role === 'admin' && u.username !== 'محمد' ? `<button onclick="deleteSystemUser(${index})" style="background:#ef4444; color:white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer;">حذف</button>` : 'محمي رئيسي'}
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function updateUserRole(index, newRole) {
+    if (!currentUser || currentUser.role !== 'admin') { alert('🚫 صلاحية المدير فقط!'); return; }
+    users[index].role = newRole;
+    localStorage.setItem('users', JSON.stringify(users));
+    alert('✅ تم تحديث صلاحية المستخدم بنجاح.');
+}
+
+function deleteSystemUser(index) {
+    if (!currentUser || currentUser.role !== 'admin') { alert('🚫 صلاحية المدير فقط!'); return; }
+    if (confirm('هل تريد حذف هذا المستخدم؟')) {
+        users.splice(index, 1);
+        localStorage.setItem('users', JSON.stringify(users));
+        renderSystemUsersTable();
+    }
+}
+
 // --- إدارة المنتجات (إضافة منتج جديد يظهر فوق المنتجات السابقة تلقائياً) ---
 function addNewProduct() {
+    if (!currentUser) { alert('⚠️ يجب تسجيل الدخول أولاً!'); return; }
+
     const name = document.getElementById('newProdName').value.trim();
     const price = parseFloat(document.getElementById('newProdPrice').value);
     const currency = document.getElementById('newProdCurrency').value;
@@ -95,10 +228,10 @@ function addNewProduct() {
 
 function saveProductData(name, price, currency, stock, desc, image) {
     const newId = inventory.length > 0 ? inventory[inventory.length - 1].id + 1 : 1;
-    // إضافة المنتج الجديد في بداية المصفوفة لظهر فوق المنتجات السابقة تلقائياً
     inventory.unshift({ id: newId, name, price, currency, stock, desc, image });
     localStorage.setItem('pos_inventory', JSON.stringify(inventory));
     renderStoreProducts();
+    if(typeof renderAdminInventory === 'function') renderAdminInventory();
     alert('✅ تم إضافة المنتج ونشره في المتجر بنجاح.');
 }
 
@@ -225,7 +358,6 @@ function submitOnlineOrder() {
     
     orderText += `%0A💰 *الإجمالي النهائي (شامل الضريبة):* ${grandTotal.toFixed(2)} YER`;
 
-    // توجيه الطلب إلى رقم الواتساب المطلوب بدقة
     const adminWhatsAppNumber = "967780445044";
     const whatsappURL = `https://wa.me/${adminWhatsAppNumber}?text=${orderText}`;
 
